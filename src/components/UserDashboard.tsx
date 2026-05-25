@@ -29,8 +29,14 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
   const [deliveryType, setDeliveryType] = useState<'cod' | 'pickup'>('pickup');
   const [isOrdering, setIsOrdering] = useState(false);
 
-  useEffect(() => { localStorage.setItem('user_cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem('user_active_tab', tab); }, [tab]);
+  // Persist cart and tab
+  useEffect(() => {
+    localStorage.setItem('user_cart', JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('user_active_tab', tab);
+  }, [tab]);
 
   useEffect(() => {
     api.getAll().then(setCaps);
@@ -49,29 +55,22 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
     });
   };
 
-  const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.cap.id !== id));
+  const removeFromCart = (id: string) => {
+    setCart(prev => prev.filter(item => item.cap.id !== id));
+  };
+
   const cartTotal = cart.reduce((acc, item) => acc + (item.cap.price * item.qty), 0);
 
   const placeOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || cart.length === 0) return;
+
     setIsOrdering(true);
 
     const orderData: Omit<Order, 'id' | 'date'> = {
       userId: user.id,
       userName: user.name,
-      items: cart.map(i => ({
-        id: i.cap.id,
-        name: i.cap.name,
-        team: i.cap.team,
-        year: i.cap.year,
-        condition: i.cap.condition,
-        price: i.cap.price,
-        description: i.cap.description,
-        image: i.cap.image,
-        featured: i.cap.featured,
-        quantity: i.qty,
-      })),
+      items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
       total: cartTotal,
       status: 'pending',
       paymentMethod,
@@ -82,17 +81,24 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
     };
 
     try {
-      const response = await api.createOrder(orderData);
-      console.log('Order response:', response);
+      const created = await api.createOrder(orderData);
 
-      // reset cart and reload orders
+      if (!created || !created.id) {
+        alert('Failed to create order. Please try again.');
+        setIsOrdering(false);
+        return;
+      }
+
       setCart([]);
       setTab('orders');
-      const updatedOrders = await api.getOrders();
-      setOrders(updatedOrders.filter(o => o.userId === user.id));
+
+      // Reload orders immediately
+      const list = await api.getOrders();
+      setOrders(list.filter(o => o.userId === user.id));
+
     } catch (err) {
-      console.error('Failed to place order:', err);
-      alert('Error placing order, check console.');
+      console.error(err);
+      alert('Something went wrong while placing the order.');
     } finally {
       setIsOrdering(false);
     }
@@ -100,6 +106,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Nav */}
       <nav className="bg-stone-900 border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
@@ -131,8 +138,25 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
         </div>
       </nav>
 
-      {/* ... rest of your UI remains unchanged ... */}
-
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Browse, Cart, Orders Tabs */}
+        {tab === 'browse' && <BrowseTab caps={caps} addToCart={addToCart} />}
+        {tab === 'cart' && <CartTab 
+          cart={cart} 
+          removeFromCart={removeFromCart} 
+          address={address} setAddress={setAddress} 
+          phone={phone} setPhone={setPhone}
+          notes={notes} setNotes={setNotes}
+          paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+          deliveryType={deliveryType} setDeliveryType={setDeliveryType}
+          placeOrder={placeOrder}
+          isOrdering={isOrdering}
+          cartTotal={cartTotal}
+        />}
+        {tab === 'orders' && <OrdersTab orders={orders} />}
+      </main>
     </div>
   );
 }
+
+// You can split BrowseTab, CartTab, OrdersTab as separate components for clarity
