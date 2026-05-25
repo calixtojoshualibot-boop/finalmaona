@@ -20,7 +20,7 @@ const pool = mysql.createPool({
   user: process.env.MYSQL_USER,
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
-  port: Number(process.env.MYSQL_PORT) || 17652, 
+  port: Number(process.env.MYSQL_PORT) || 3306,
   ssl: {
     rejectUnauthorized: false 
   },
@@ -29,7 +29,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// --- AUTH & USERS API ---
+// --- AUTH API ---
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -50,38 +50,6 @@ app.post("/api/register", async (req, res) => {
   try {
     await pool.query("INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, 'user')", [id, name, email, password]);
     res.json({ id, name, email, role: 'user' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/users", async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT id, name, email, role FROM users");
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/users/:id", async (req, res) => {
-  const { role } = req.body;
-  try {
-    await pool.query("UPDATE users SET role = ? WHERE id = ?", [role, req.params.id]);
-    res.json({ success: true, message: "User role updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/users/:id", async (req, res) => {
-  try {
-    const [user] = await pool.query("SELECT email FROM users WHERE id = ?", [req.params.id]);
-    if (user.length > 0 && user[0].email === "admin@caps.ph") {
-      return res.status(403).json({ error: "The primary admin account cannot be deleted." });
-    }
-    await pool.query("DELETE FROM users WHERE id = ?", [req.params.id]);
-    res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -134,46 +102,11 @@ app.delete("/api/caps/:id", async (req, res) => {
 });
 
 // --- ORDERS API ---
-
-// 1. FIXED: GET all master orders (For Admin Dashboard Overview)
 app.get("/api/orders", async (req, res) => {
   try {
-    // Modified to use a safer column verification fallback fallback ordering fallback
-    const [rows] = await pool.query("SELECT * FROM orders");
-    
-    const parsedOrders = rows.map(o => {
-      let parsedItems = [];
-      try {
-        parsedItems = typeof o.items === "string" ? JSON.parse(o.items) : o.items;
-      } catch (e) {
-        console.error(`Failed parsing item payload string for order ID: ${o.id}`, e);
-        parsedItems = []; // fallback clean array so the UI never hits an uncaught white crash
-      }
-      return { ...o, items: parsedItems };
-    });
-
-    res.json(parsedOrders);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 2. NEW: GET specific user's orders (For Vault History Dashboard View)
-app.get("/api/orders/user/:userId", async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM orders WHERE userId = ?", [req.params.userId]);
-    
-    const parsedOrders = rows.map(o => {
-      let parsedItems = [];
-      try {
-        parsedItems = typeof o.items === "string" ? JSON.parse(o.items) : o.items;
-      } catch (e) {
-        console.error(`Failed parsing user history profile list item logic for order ID: ${o.id}`, e);
-        parsedItems = [];
-      }
-      return { ...o, items: parsedItems };
-    });
-
+    const [rows] = await pool.query("SELECT * FROM orders ORDER BY date DESC");
+    // Parse items string back to JSON
+    const parsedOrders = rows.map(o => ({ ...o, items: JSON.parse(o.items) }));
     res.json(parsedOrders);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -218,6 +151,7 @@ app.get("/api/contact", async (req, res) => {
 app.post("/api/contact", async (req, res) => {
   const { shopName, ownerName, phone, email, address, facebook, instagram, messengerUsername, bio } = req.body;
   try {
+    // Upsert logic for a single contact row
     await pool.query("DELETE FROM contact");
     await pool.query(
       "INSERT INTO contact (shopName, ownerName, phone, email, address, facebook, instagram, messengerUsername, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -229,11 +163,21 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
-// Static frontend file routing
-app.use(express.static(path.join(__dirname, "dist")));
+// Serve static files from the 'dist' directory
+const distPath = path.join(__dirname, "dist");
+app.use(express.static(distPath));
 
-app.get("/:any*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+// API routes must come BEFORE the catch-all route
+// [Your existing API routes are already above this]
+
+// Use this specific syntax for Express 5 catch-all routes to support SPA
+app.get("/:any(.*)", (req, res) => {
+  const indexPath = path.join(__dirname, "dist", "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send("Frontend build (dist/index.html) not found. Did you run npm run build?");
+  }
 });
 
 const PORT = process.env.PORT || 3000;
