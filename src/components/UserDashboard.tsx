@@ -1,286 +1,189 @@
-import { useState, useEffect } from 'react';import { Cap, Order } from '../types/Cap';import { api } from '../services/api';import TeamLogo from './TeamLogos';import { ShoppingCart, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Cap, SellerContact, UserAccount, Order } from '../types/Cap';
+import { api } from '../services/api';
+import TeamLogo, { NBALogo } from './TeamLogos';
+import {
+  Plus, Edit2, Trash2, Eye, ArrowLeft, Save, X, Upload, Camera, Star, StarOff
+} from 'lucide-react';
 
-interface Props {onLogout: () => void;onBackToShowcase: () => void;}
+interface Props { onBack: () => void; onLogout: () => void; }
 
-export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {const user = api.getUser();
+const CONDITIONS = ['good', 'renovated'] as const;
 
-const [caps, setCaps] = useState<Cap[]>([]);const [cart, setCart] = useState<{ cap: Cap; qty: number }[]>(() => {const saved = localStorage.getItem('user_cart');return saved ? JSON.parse(saved) : [];});
-
-const [orders, setOrders] = useState<Order[]>([]);const [tab, setTab] = useState<'browse' | 'cart' | 'orders'>(() => {return (localStorage.getItem('user_active_tab') as any) || 'browse';});
-
-const [address, setAddress] = useState(user?.address || '');const [phone, setPhone] = useState(user?.phone || '');const [notes, setNotes] = useState('');const [paymentMethod, setPaymentMethod] = useState<'gcash' | 'cash'>('cash');const [deliveryType, setDeliveryType] = useState<'cod' | 'pickup'>('pickup');const [isOrdering, setIsOrdering] = useState(false);
-
-useEffect(() => {localStorage.setItem('user_cart', JSON.stringify(cart));}, [cart]);
-
-useEffect(() => {localStorage.setItem('user_active_tab', tab);}, [tab]);
-
-useEffect(() => {api.getAll().then(setCaps);api.getOrders().then(list => {const filtered = list.filter(o => o.userId === user?.id);setOrders(filtered);});}, [user?.id]);
-
-const addToCart = (cap: Cap) => {setCart(prev => {const existing = prev.find(item => item.cap.id === cap.id);if (existing) {return prev.map(item =>item.cap.id === cap.id ? { ...item, qty: item.qty + 1 } : item);}return [...prev, { cap, qty: 1 }];});};
-
-const removeFromCart = (id: string) => {setCart(prev => prev.filter(item => item.cap.id !== id));};
-
-const cartTotal = cart.reduce((acc, item) => acc + item.cap.price * item.qty,0);
-
-const placeOrder = async (e: React.FormEvent) => {e.preventDefault();if (!user || cart.length === 0) return;
-
-setIsOrdering(true);
-
-const orderData: Omit<Order, 'id'> = {
-  userId: user.id,
-  userName: user.name,
-  items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
-  total: cartTotal,
-  status: 'pending',
-  paymentMethod,
-  deliveryType,
-  address,
-  phone,
-  notes,
-  date: new Date().toLocaleString(),
+const COND_STYLES: Record<string, string> = {
+  good: 'bg-yellow-500',
+  renovated: 'bg-green-500',
 };
 
-await api.createOrder(orderData);
+export default function Admin({ onBack, onLogout }: Props) {
+  const user = api.getUser();
+  const isAdmin = user?.role === 'admin';
 
-setCart([]);
-setTab('orders');
-setIsOrdering(false);
+  const [caps, setCaps] = useState<Cap[]>([]);
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'list'|'form'|'view'|'settings'|'orders'|'users'>(() => (localStorage.getItem('admin_active_tab') as any) || 'list');
 
-api.getOrders().then(list => {
-  setOrders(list.filter(o => o.userId === user.id));
-});
+  useEffect(() => { localStorage.setItem('admin_active_tab', tab); }, [tab]);
+  const [editing, setEditing] = useState<Cap|null>(null);
+  const [viewing, setViewing] = useState<Cap|null>(null);
+  const [del, setDel] = useState<Cap|null>(null);
 
-};
+  // form fields
+  const [fName, setFName] = useState('');
+  const [fTeam, setFTeam] = useState('');
+  const [fYear, setFYear] = useState(1995);
+  const [fCond, setFCond] = useState<Cap['condition']>('good');
+  const [fPrice, setFPrice] = useState(0);
+  const [fDesc, setFDesc] = useState('');
+  const [fImage, setFImage] = useState<string|null>(null);
+  const [fFeat, setFFeat] = useState(false);
+  const [fUpload, setFUpload] = useState('');
+  const [fReceipt, setFReceipt] = useState<string>(''); // new: receipt
+  const [errors, setErrors] = useState<Record<string,string>>({});
 
-return (NBA Vault{['browse', 'orders'].map(t => (<buttonkey={t}onClick={() => setTab(t as any)}className={text-xs font-black uppercase tracking-widest transition-colors ${
-                    tab === t ? 'text-red-500' : 'text-stone-500 hover:text-white'
-                  }}>{t}))}
+  const fileRef = useRef<HTMLInputElement>(null);
+  const receiptRef = useRef<HTMLInputElement>(null);
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setTab('cart')}
-          className="relative p-2 text-stone-400 hover:text-red-500 transition-colors"
-        >
-          <ShoppingCart size={22} />
-          {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-stone-900">
-              {cart.reduce((acc, item) => acc + item.qty, 0)}
-            </span>
-          )}
-        </button>
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setFImage(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
-        <div className="h-6 w-px bg-white/10 mx-2" />
+  const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setFReceipt(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
-        <div className="text-right hidden sm:block">
-          <p className="text-[10px] font-black text-stone-500 uppercase leading-none">
-            {user?.role}
-          </p>
-          <p className="text-sm font-bold text-white">{user?.name}</p>
+  const load = () => api.getAll().then(setCaps);
+  useEffect(() => { load(); }, []);
+
+  const resetForm = () => {
+    setFName(''); setFTeam(''); setFYear(1995); setFCond('good');
+    setFPrice(0); setFDesc(''); setFImage(null); setFFeat(false);
+    setFUpload(''); setFReceipt(''); setErrors({}); setEditing(null);
+  };
+
+  const openCreate = () => { resetForm(); setTab('form'); };
+  const openEdit = (c: Cap) => {
+    setEditing(c); setFName(c.name); setFTeam(c.team); setFYear(c.year);
+    setFCond(c.condition); setFPrice(c.price); setFDesc(c.description);
+    setFImage(c.image || null); setFFeat(c.featured); setFUpload('');
+    setTab('form');
+  };
+
+  const validate = () => {
+    const e: Record<string,string> = {};
+    if (!fName.trim()) e.name = 'Required';
+    if (!fTeam.trim()) e.team = 'Required';
+    if (!fDesc.trim()) e.desc = 'Required';
+    if (fPrice < 0) e.price = 'Invalid';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const save = () => {
+    if (!validate()) return;
+    const data = { name:fName, team:fTeam, year:fYear, condition:fCond, price:fPrice, description:fDesc, image:fImage, featured:fFeat, receipt: fReceipt };
+    if (editing) api.update(editing.id, data);
+    else api.create(data);
+    load(); resetForm(); setTab('list');
+  };
+
+  const filtered = caps.filter(c => {
+    const s = search.toLowerCase();
+    return c.name.toLowerCase().includes(s) || c.team.toLowerCase().includes(s);
+  });
+
+  // ── FORM ──
+  if (tab==='form') return (
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm space-y-5">
+        {/* Cap Name */}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cap Name *</label>
+          <input value={fName} onChange={e=>setFName(e.target.value)}
+            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500"/>
         </div>
 
-        <button
-          onClick={onLogout}
-          className="text-[10px] font-black text-red-500 uppercase border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500/10 transition-colors"
-        >
-          Logout
+        {/* Team */}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Team *</label>
+          <input value={fTeam} onChange={e=>setFTeam(e.target.value)}
+            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500"/>
+        </div>
+
+        {/* Year + Condition */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Year Released</label>
+            <input type="number" value={fYear} onChange={e=>setFYear(Number(e.target.value))}
+              className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500"/>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condition</label>
+            <select value={fCond} onChange={e=>setFCond(e.target.value as Cap['condition'])}
+              className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 bg-white capitalize">
+              {CONDITIONS.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Price */}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Price (₱)</label>
+          <input type="number" value={fPrice} onChange={e=>setFPrice(Number(e.target.value))}
+            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500"/>
+        </div>
+
+        {/* Cap Picture */}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Cap Picture</label>
+          <div className="flex items-center gap-4">
+            <div className="w-28 h-28 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden">
+              {fImage ? <TeamLogo image={fImage} size={112}/> : <Camera size={28} className="text-slate-300"/>}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload}/>
+            <button type="button" onClick={()=>fileRef.current?.click()} className="px-4 py-2 border-dashed border-2 rounded-lg text-sm font-semibold text-slate-600 hover:border-red-400 hover:text-red-600">Upload Photo</button>
+          </div>
+        </div>
+
+        {/* Receipt Upload */}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Receipt (Optional)</label>
+          <div className="flex items-center gap-4">
+            <div className="w-28 h-28 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden">
+              {fReceipt ? <img src={fReceipt} alt="Receipt" className="object-cover w-full h-full"/> : <Camera size={28} className="text-slate-300"/>}
+            </div>
+            <input ref={receiptRef} type="file" accept="image/*" className="hidden" onChange={handleReceiptUpload}/>
+            <button type="button" onClick={()=>receiptRef.current?.click()} className="px-4 py-2 border-dashed border-2 rounded-lg text-sm font-semibold text-slate-600 hover:border-red-400 hover:text-red-600">Upload Receipt</button>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Description *</label>
+          <textarea value={fDesc} onChange={e=>setFDesc(e.target.value)} rows={3} className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500"/>
+        </div>
+
+        {/* Featured */}
+        <button type="button" onClick={()=>setFFeat(!fFeat)} className={`px-4 py-2 border-2 rounded-lg font-bold ${fFeat?'border-yellow-400 bg-yellow-50 text-yellow-700':'border-slate-200 text-slate-500'}`}>
+          {fFeat ? '⭐ Featured' : 'Not Featured'}
         </button>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-4 border-t border-slate-200">
+          <button onClick={()=>{resetForm(); setTab('list');}} className="flex-1 py-2.5 border rounded-lg font-semibold">Cancel</button>
+          <button onClick={save} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-lg">{editing?'Update':'Add to Vault'}</button>
+        </div>
       </div>
     </div>
-  </nav>
-
-  <main className="max-w-7xl mx-auto px-6 py-8">
-    {tab === 'browse' && (
-      <div>
-        <h1 className="text-4xl font-black uppercase mb-8">Vault Collection</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {caps.map(cap => (
-            <div key={cap.id} className="bg-stone-900 rounded-3xl p-4">
-              <TeamLogo image={cap.image} size={180} />
-              <h3 className="font-bold mt-4">{cap.name}</h3>
-              <p className="text-red-500 font-black">₱{cap.price.toLocaleString()}</p>
-              <button
-                onClick={() => addToCart(cap)}
-                className="w-full mt-4 bg-red-600 py-3 rounded-xl font-black uppercase"
-              >
-                Add to Cart
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {tab === 'cart' && (
-      <div className="space-y-6">
-        <h1 className="text-4xl font-black uppercase">Shopping Cart</h1>
-        {cart.length === 0 ? (
-          <p className="text-stone-500">Cart is empty</p>
-        ) : (
-          <>
-            {cart.map(item => (
-              <div key={item.cap.id} className="bg-stone-900 p-4 rounded-2xl flex justify-between items-center">
-                <div>
-                  <h3 className="font-bold">{item.cap.name}</h3>
-                  <p>Qty: {item.qty}</p>
-                </div>
-                <button onClick={() => removeFromCart(item.cap.id)}>
-                  <Trash2 />
-                </button>
-              </div>
-            ))}
-
-            <form onSubmit={placeOrder} className="bg-stone-900 p-6 rounded-3xl space-y-4">
-              <input
-                type="text"
-                placeholder="Phone"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                className="w-full p-3 rounded-xl bg-black"
-                required
-              />
-              <textarea
-                placeholder="Address"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                className="w-full p-3 rounded-xl bg-black"
-                required
-              />
-
-              {/* Payment Method */}
-              <div className="space-y-2">
-                <p className="font-bold text-sm">Payment Method</p>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cash"
-                      checked={paymentMethod === 'cash'}
-                      onChange={() => setPaymentMethod('cash')}
-                    />
-                    Cash
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="gcash"
-                      checked={paymentMethod === 'gcash'}
-                      onChange={() => setPaymentMethod('gcash')}
-                    />
-                    GCash
-                  </label>
-                </div>
-                {paymentMethod === 'gcash' && (
-                  <p className="text-xs text-stone-400">
-                    Please send payment to <span className="font-bold">GCash #: 09123456789</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Delivery Type */}
-              <div className="space-y-2">
-                <p className="font-bold text-sm">Delivery Type</p>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="deliveryType"
-                      value="pickup"
-                      checked={deliveryType === 'pickup'}
-                      onChange={() => setDeliveryType('pickup')}
-                    />
-                    Pickup
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="deliveryType"
-                      value="cod"
-                      checked={deliveryType === 'cod'}
-                      onChange={() => setDeliveryType('cod')}
-                    />
-                    Cash on Delivery
-                  </label>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isOrdering}
-                className="w-full bg-red-600 py-4 rounded-2xl font-black uppercase"
-              >
-                {isOrdering ? 'Processing...' : 'Place Order'}
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-    )}
-
-    {tab === 'orders' && (
-      <div className="space-y-8">
-        <h1 className="text-4xl font-black uppercase">Order History</h1>
-        {orders.length === 0 ? (
-          <div className="bg-stone-900 p-10 rounded-3xl text-center">No orders found</div>
-        ) : (
-          orders.map(order => (
-            <div key={order.id} className="bg-stone-900 rounded-3xl p-6">
-              <div className="flex justify-between mb-6">
-                <div>
-                  <p className="text-stone-500 text-xs">ORDER ID</p>
-                  <h3 className="font-black">#{order.id?.slice(-8) || 'N/A'}</h3>
-                </div>
-                <div className="text-right">
-                  <p className="text-stone-500 text-xs">DATE</p>
-                  <p>{order.date ? order.date.split(' ')[0] : 'No Date'}</p>
-                  <p
-                    className={`mt-1 px-3 py-1 rounded-full text-xs font-black uppercase ${
-                      order.status === 'pending'
-                        ? 'bg-yellow-500 text-black'
-                        : order.status === 'preparing'
-                        ? 'bg-blue-500 text-white'
-                        : order.status === 'ready'
-                        ? 'bg-green-400 text-black'
-                        : order.status === 'completed'
-                        ? 'bg-green-700 text-white'
-                        : order.status === 'cancelled'
-                        ? 'bg-red-600 text-white'
-                        : 'bg-gray-500 text-white'
-                    }`}
-                  >
-                    {order.status || 'Pending'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {order.items?.map((item, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <div>
-                      <p className="font-bold">{item.name}</p>
-                      <p className="text-sm text-stone-500">Qty: {item.quantity}</p>
-                    </div>
-                    <p className="font-black">₱{(item.price * item.quantity).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-white/10 flex justify-between">
-                <div className="space-y-2 text-sm text-stone-400">
-                  <p>Payment: {order.paymentMethod?.toUpperCase() || 'N/A'}</p>
-                  <p>Delivery: {order.deliveryType?.toUpperCase() || 'N/A'}</p>
-                  <p>Address: {order.address || 'No Address'}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-stone-500 text-xs">TOTAL</p>
-                  <h2 className="text-3xl font-black text-red-600">₱{order.total?.toLocaleString() || 0}</h2>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    )}
-  </main>
-</div>
+  );
+}
