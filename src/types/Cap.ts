@@ -10,31 +10,14 @@ export interface Cap {
   featured: boolean;
 }
 
-export interface SellerContact {
-  shopName: string;
-  ownerName: string;
-  phone: string;
-  email: string;
-  address: string;
-  facebook: string;
-  instagram: string;
-  bio: string;
-  messengerUsername: string;
-}
-
 export interface UserAccount {
   id: string;
+  name: string;
   email: string;
   password?: string;
   role: 'admin' | 'user';
-  name: string;
   phone?: string;
   address?: string;
-}
-
-export interface CartItem {
-  capId: string;
-  quantity: number;
 }
 
 export interface Order {
@@ -44,11 +27,22 @@ export interface Order {
   items: (Cap & { quantity: number })[];
   total: number;
   status: 'pending' | 'repacking' | 'processing' | 'shipped' | 'completed' | 'cancelled';
+  date: string;
   paymentMethod: 'gcash' | 'cash';
   deliveryType: 'cod' | 'pickup';
   address: string;
   phone: string;
   notes?: string;
-  paymentProof?: string; // For GCash
-  date: string;
+}
+
+export interface SellerContact {
+  shopName: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  address: string;
+  facebook: string;
+  instagram: string;
+  messengerUsername: string;
+  bio: string;
 }
