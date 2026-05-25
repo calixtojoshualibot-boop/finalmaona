@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; 
 
 interface User {
   id: string;
@@ -11,9 +10,8 @@ interface User {
 export default function Admin() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); 
 
-  // Fetch users from backend on component mount
+  // Fetch users from the backend server database pool
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -32,7 +30,7 @@ export default function Admin() {
     }
   };
 
-  // ACTION 1: Change User Role
+  // ACTION 1: Change User Account Role
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -51,9 +49,9 @@ export default function Admin() {
     }
   };
 
-  // ACTION 2: Delete User Account
+  // ACTION 2: Delete User Account Permanently
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm("Are you sure you want to permanently delete this account?")) {
+    if (window.confirm("Are you sure you want to permanently delete this user?")) {
       try {
         const response = await fetch(`/api/users/${userId}`, {
           method: "DELETE",
@@ -71,63 +69,82 @@ export default function Admin() {
     }
   };
 
-  if (loading) return <div className="text-center p-10 font-medium text-slate-500">Loading accounts...</div>;
+  if (loading) {
+    return <div className="text-center p-10 font-medium text-slate-400">Loading accounts...</div>;
+  }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white mt-6">
-      {/* HEADER SECTION WITH FIXED BACK ACTION */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold tracking-tight text-gray-900 uppercase">User Accounts</h2>
-        <button 
-          onClick={() => navigate(-1)} 
-          className="text-sm font-semibold text-slate-500 hover:text-slate-800 uppercase border-none bg-transparent cursor-pointer tracking-wider"
-        >
-          Back
-        </button>
-      </div>
+    <div className="min-h-screen bg-slate-50/50 p-6">
+      <div className="max-w-5xl mx-auto bg-white shadow-sm rounded-xl p-6 mt-4 border border-slate-100">
+        
+        {/* HEADER BLOCK */}
+        <div className="flex justify-between items-center mb-8 pb-4 border-b border-slate-50">
+          <h2 className="text-lg font-extrabold tracking-wider text-slate-900 uppercase">
+            User Accounts
+          </h2>
+          <button 
+            onClick={() => window.history.back()} 
+            className="text-xs font-bold text-slate-400 hover:text-slate-900 uppercase tracking-widest bg-transparent border-none cursor-pointer transition-colors"
+          >
+            Back
+          </button>
+        </div>
 
-      {/* USER ACCOUNTS TABLE */}
-      <div className="overflow-x-auto border border-slate-100 rounded-xl shadow-sm">
-        <table className="min-w-full divide-y divide-slate-100 text-sm">
-          <thead className="bg-slate-50/70 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-4">Name</th>
-              <th className="px-6 py-4">Email</th>
-              <th className="px-6 py-4">Role</th>
-              <th className="px-6 py-4 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-800">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 font-bold text-slate-900">{user.name}</td>
-                <td className="px-6 py-4 text-slate-400 font-normal">{user.email}</td>
-                <td className="px-6 py-4">
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                    className={`px-2 py-0.5 text-xs font-extrabold rounded uppercase tracking-wider cursor-pointer border border-transparent focus:outline-none focus:border-slate-300 appearance-none text-center ${
-                      user.role.toLowerCase() === "admin" 
-                        ? "bg-red-600 text-white" 
-                        : "bg-slate-200 text-slate-600"
-                    }`}
-                  >
-                    <option value="user" className="bg-white text-slate-800 font-medium">User</option>
-                    <option value="admin" className="bg-white text-slate-800 font-medium">Admin</option>
-                  </select>
-                </td>
-                <td className="px-6 py-4 text-center whitespace-nowrap">
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white border-none cursor-pointer transition-all"
-                  >
-                    Delete
-                  </button>
-                </td>
+        {/* CUSTOM LAYOUT RESPONSIVE GRID BOX */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-100 text-sm text-left">
+            <thead>
+              <tr className="text-slate-400 font-bold text-xs tracking-wider uppercase bg-slate-50/70">
+                <th className="px-6 py-4">Name</th>
+                <th className="px-6 py-4">Email</th>
+                <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-700">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-slate-50/40 transition-colors">
+                  {/* USER FULLNAME NAME */}
+                  <td className="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                    {user.name}
+                  </td>
+                  
+                  {/* USER DATA ACCOUNT EMAIL */}
+                  <td className="px-6 py-4 text-slate-500 font-normal whitespace-nowrap">
+                    {user.email}
+                  </td>
+                  
+                  {/* ACTION DROPDOWN FOR ROLES */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      className={`px-3 py-1 text-xs font-extrabold rounded-md uppercase tracking-wider cursor-pointer border focus:outline-none transition-all ${
+                        user.role.toLowerCase() === "admin"
+                          ? "bg-red-600 text-white border-transparent shadow-sm hover:bg-red-700"
+                          : "bg-slate-100 text-slate-600 border-slate-200/60 hover:bg-slate-200/80"
+                      }`}
+                    >
+                      <option value="user" className="bg-white text-slate-800 font-semibold">User</option>
+                      <option value="admin" className="bg-white text-slate-800 font-semibold">Admin</option>
+                    </select>
+                  </td>
+                  
+                  {/* BUTTON ACTION FIELD FOR ROW DELETIONS */}
+                  <td className="px-6 py-4 text-center whitespace-nowrap">
+                    <button
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-100/50 cursor-pointer transition-all active:scale-95"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
       </div>
     </div>
   );
