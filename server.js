@@ -20,7 +20,7 @@ const pool = mysql.createPool({
   user: process.env.MYSQL_USER,
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
-  port: Number(process.env.MYSQL_PORT) || 3306,
+  port: Number(process.env.MYSQL_PORT) || 17652, // Updated default fallback to your Aiven port
   ssl: {
     rejectUnauthorized: false 
   },
@@ -50,6 +50,16 @@ app.post("/api/register", async (req, res) => {
   try {
     await pool.query("INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, 'user')", [id, name, email, password]);
     res.json({ id, name, email, role: 'user' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- USERS API (ADDED TO FIX YOUR EMPTY WEB TABLE) ---
+app.get("/api/users", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT id, name, email, role FROM users");
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -105,7 +115,6 @@ app.delete("/api/caps/:id", async (req, res) => {
 app.get("/api/orders", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM orders ORDER BY date DESC");
-    // Parse items string back to JSON
     const parsedOrders = rows.map(o => ({ ...o, items: JSON.parse(o.items) }));
     res.json(parsedOrders);
   } catch (err) {
@@ -151,7 +160,6 @@ app.get("/api/contact", async (req, res) => {
 app.post("/api/contact", async (req, res) => {
   const { shopName, ownerName, phone, email, address, facebook, instagram, messengerUsername, bio } = req.body;
   try {
-    // Upsert logic for a single contact row
     await pool.query("DELETE FROM contact");
     await pool.query(
       "INSERT INTO contact (shopName, ownerName, phone, email, address, facebook, instagram, messengerUsername, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
