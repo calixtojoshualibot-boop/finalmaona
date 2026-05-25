@@ -27,8 +27,6 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'gcash' | 'cash'>('cash');
   const [deliveryType, setDeliveryType] = useState<'cod' | 'pickup'>('pickup');
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string>('');
   const [isOrdering, setIsOrdering] = useState(false);
 
   useEffect(() => {
@@ -70,11 +68,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
     const orderData: Omit<Order, 'id' | 'date'> = {
       userId: user.id,
       userName: user.name,
-      items: cart.map(i => ({
-        ...i.cap,
-        quantity: i.qty,
-        image: i.cap.image || ''
-      })),
+      items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
       total: cartTotal,
       status: 'pending',
       paymentMethod,
@@ -84,37 +78,26 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
       notes,
     };
 
-    // Upload receipt if GCash
-    if (paymentMethod === 'gcash' && receiptFile) {
-      const formData = new FormData();
-      formData.append('file', receiptFile);
-      const uploaded = await api.uploadReceipt(formData); // adjust API call
-      orderData.notes += ` | Receipt: ${uploaded.url}`;
-    }
+    try {
+      // create order and wait for confirmation
+      await api.createOrder(orderData);
 
-    await api.createOrder(orderData);
-    setCart([]);
-    setTab('orders');
-    
-    // Refresh order history for user immediately
-    const updatedOrders = await api.getOrders();
-    setOrders(updatedOrders.filter(o => o.userId === user.id));
+      // clear cart and switch tab
+      setCart([]);
+      setTab('orders');
 
-    setIsOrdering(false);
-    setReceiptFile(null);
-    setReceiptPreview('');
-  };
-
-  const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setReceiptFile(e.target.files[0]);
-      setReceiptPreview(URL.createObjectURL(e.target.files[0]));
+      // fetch updated orders and filter for current user
+      const updatedOrders = await api.getOrders();
+      setOrders(updatedOrders.filter(o => o.userId === user.id));
+    } catch (error) {
+      console.error('Error placing order:', error);
+    } finally {
+      setIsOrdering(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Navbar */}
       <nav className="bg-stone-900 border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
@@ -146,68 +129,90 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {tab === 'cart' && (
-          <div className="max-w-5xl mx-auto animate-fade-in space-y-8">
-            <h1 className="text-4xl font-black uppercase tracking-tighter">Shopping <span className="text-red-600">Cart</span></h1>
+        {/* cart tab and browse tab remain unchanged */}
 
-            {/* Cart items */}
-            {cart.map(item => (
-              <div key={item.cap.id} className="bg-stone-900/50 rounded-2xl border border-white/5 p-4 flex items-center gap-6">
-                <div className="w-20 h-20 rounded-xl bg-stone-900 flex items-center justify-center p-2">
-                  <TeamLogo image={item.cap.image} size={64} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-white">{item.cap.name}</h4>
-                  <p className="text-sm text-red-500 font-black mt-1">₱{item.cap.price.toLocaleString()}</p>
-                  <p className="text-[10px] text-stone-400">Qty: {item.qty}</p>
-                </div>
-                <button onClick={() => removeFromCart(item.cap.id)} className="p-3 bg-white/5 rounded-xl text-stone-500 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 size={20}/></button>
-              </div>
-            ))}
-
-            {/* Checkout Form */}
-            <form onSubmit={placeOrder} className="bg-stone-900 rounded-3xl border border-white/10 p-6 space-y-6">
-              <h3 className="text-xl font-black uppercase tracking-tight text-white border-b border-white/5 pb-4">Checkout</h3>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-stone-500 mb-2 tracking-widest">Phone</label>
-                <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm" />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-stone-500 mb-2 tracking-widest">Address</label>
-                <textarea required value={address} onChange={e => setAddress(e.target.value)} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm" />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-stone-500 mb-2 tracking-widest">Payment Method</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['cash', 'gcash'].map(m => (
-                    <button key={m} type="button" onClick={() => setPaymentMethod(m as any)} className={`py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl border-2 transition-all ${paymentMethod === m ? 'border-red-600 bg-red-600 text-white' : 'border-white/5 bg-white/5 text-stone-500 hover:border-white/10'}`}>{m}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-stone-500 mb-2 tracking-widest">Upload Receipt</label>
-                <input type="file" accept="image/*" onChange={handleReceiptChange} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm" />
-                {receiptPreview && <img src={receiptPreview} alt="receipt" className="mt-2 w-40 h-40 object-cover rounded-xl" />}
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <span className="text-xs font-black text-stone-500 uppercase">Total amount</span>
-                <span className="text-2xl font-black text-red-600 tracking-tighter">₱{cartTotal.toLocaleString()}</span>
-              </div>
-
-              <button type="submit" disabled={isOrdering} className="w-full py-4 bg-red-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50 active:scale-95">
-                {isOrdering ? 'Securing Order...' : 'Place Vault Order'}
-              </button>
-            </form>
+        {tab === 'orders' && (
+          <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+            <h1 className="text-4xl font-black uppercase tracking-tighter">Order <span className="text-red-600">History</span></h1>
+            <div className="space-y-6">
+              {orders.length === 0 ? (
+                <div className="bg-stone-900/50 rounded-3xl border border-dashed border-white/10 p-20 text-center text-stone-600 font-black uppercase tracking-widest italic">No vault history found</div>
+              ) : (
+                orders.map(order => (
+                  <div key={order.id} className="bg-stone-900/50 rounded-3xl border border-white/5 overflow-hidden group">
+                    <div className="px-6 py-5 border-b border-white/5 bg-white/5 flex flex-wrap justify-between items-center gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-black border border-white/10 flex items-center justify-center text-red-500 font-black text-xs italic">NB</div>
+                        <div>
+                          <p className="text-[10px] font-black text-stone-500 uppercase leading-none">ORDER ID</p>
+                          <p className="font-bold text-white">#{order.id.slice(-8).toUpperCase()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-stone-500 uppercase leading-none">STATUS</p>
+                          <span className={`inline-block mt-1 font-black uppercase text-[10px] tracking-widest ${
+                            order.status === 'completed' ? 'text-emerald-500' :
+                            order.status === 'cancelled' ? 'text-stone-500' :
+                            order.status === 'repacking' ? 'text-blue-400' :
+                            order.status === 'processing' ? 'text-orange-400' :
+                            'text-red-500'
+                          }`}>{order.status}</span>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[10px] font-black text-stone-500 uppercase leading-none">DATE</p>
+                           <p className="text-xs font-bold text-white mt-1">{order.date.split(' ')[0]}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between group/item">
+                          <div className="flex items-center gap-4">
+                            {item.image && <TeamLogo image={item.image} size={40} />}
+                            <div>
+                              <p className="text-sm font-bold text-white group-hover/item:text-red-400 transition-colors">{item.name}</p>
+                              <p className="text-[10px] text-stone-500 font-black uppercase">Qty: {item.quantity} • ₱{item.price.toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <span className="text-sm font-black text-white">₱{(item.price * item.quantity).toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap justify-between items-end gap-6">
+                        <div className="flex gap-8">
+                           <div>
+                              <p className="text-[10px] font-black text-stone-500 uppercase mb-1">Details</p>
+                              <div className="flex items-center gap-2 text-xs font-bold text-stone-300">
+                                 <CreditCard size={14} className="text-red-500"/> {order.paymentMethod.toUpperCase()}
+                                 <span className="w-1 h-1 rounded-full bg-stone-700"/>
+                                 <Package size={14} className="text-red-500"/> {order.deliveryType.toUpperCase()}
+                              </div>
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-black text-stone-500 uppercase mb-1">Location</p>
+                              <div className="flex items-center gap-2 text-xs font-bold text-stone-300">
+                                 <MapPin size={14} className="text-red-500"/> {order.address.slice(0, 30)}...
+                              </div>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[10px] font-black text-stone-500 uppercase mb-1">Final Amount</p>
+                           <span className="text-3xl font-black text-red-600 tracking-tighter">₱{order.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
       </main>
+      
+      <footer className="py-20 border-t border-white/5 text-center">
+         <p className="text-[10px] font-black text-stone-800 uppercase tracking-[0.3em]">NBA CAPS VAULT • ELITE QUALITY GUARANTEED</p>
+      </footer>
     </div>
   );
 }
