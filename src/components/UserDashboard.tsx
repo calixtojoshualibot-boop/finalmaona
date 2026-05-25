@@ -87,7 +87,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
         quantity: i.qty,
       })),
       total: cartTotal,
-      status: 'pending',
+      status: 'pending', // default status
       paymentMethod,
       deliveryType,
       address,
@@ -173,7 +173,6 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-
         {tab === 'browse' && (
           <div>
             <h1 className="text-4xl font-black uppercase mb-8">
@@ -223,15 +222,10 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                   >
                     <div>
                       <h3 className="font-bold">{item.cap.name}</h3>
-
-                      <p>
-                        Qty: {item.qty}
-                      </p>
+                      <p>Qty: {item.qty}</p>
                     </div>
 
-                    <button
-                      onClick={() => removeFromCart(item.cap.id)}
-                    >
+                    <button onClick={() => removeFromCart(item.cap.id)}>
                       <Trash2 />
                     </button>
                   </div>
@@ -273,9 +267,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
 
         {tab === 'orders' && (
           <div className="space-y-8">
-            <h1 className="text-4xl font-black uppercase">
-              Order History
-            </h1>
+            <h1 className="text-4xl font-black uppercase">Order History</h1>
 
             {orders.length === 0 ? (
               <div className="bg-stone-900 p-10 rounded-3xl text-center">
@@ -283,53 +275,51 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
               </div>
             ) : (
               orders.map(order => (
-                <div
-                  key={order.id}
-                  className="bg-stone-900 rounded-3xl p-6"
-                >
+                <div key={order.id} className="bg-stone-900 rounded-3xl p-6">
                   <div className="flex justify-between mb-6">
                     <div>
-                      <p className="text-stone-500 text-xs">
-                        ORDER ID
-                      </p>
-
+                      <p className="text-stone-500 text-xs">ORDER ID</p>
                       <h3 className="font-black">
                         #{order.id?.slice(-8) || 'N/A'}
                       </h3>
                     </div>
 
                     <div className="text-right">
-                      <p className="text-stone-500 text-xs">
-                        DATE
-                      </p>
+                      <p className="text-stone-500 text-xs">DATE</p>
+                      <p>{order.date ? order.date.split(' ')[0] : 'No Date'}</p>
 
-                      <p>
-                        {order.date
-                          ? order.date.split(' ')[0]
-                          : 'No Date'}
+                      {/* Status badge */}
+                      <p
+                        className={`mt-1 px-3 py-1 rounded-full text-xs font-black uppercase ${
+                          order.status === 'pending'
+                            ? 'bg-yellow-500 text-black'
+                            : order.status === 'preparing'
+                            ? 'bg-blue-500 text-white'
+                            : order.status === 'ready'
+                            ? 'bg-green-400 text-black'
+                            : order.status === 'completed'
+                            ? 'bg-green-700 text-white'
+                            : order.status === 'cancelled'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-gray-500 text-white'
+                        }`}
+                      >
+                        {order.status || 'Pending'}
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     {order.items?.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex justify-between"
-                      >
+                      <div key={idx} className="flex justify-between">
                         <div>
-                          <p className="font-bold">
-                            {item.name}
-                          </p>
-
+                          <p className="font-bold">{item.name}</p>
                           <p className="text-sm text-stone-500">
                             Qty: {item.quantity}
                           </p>
                         </div>
-
                         <p className="font-black">
-                          ₱
-                          {(item.price * item.quantity).toLocaleString()}
+                          ₱{(item.price * item.quantity).toLocaleString()}
                         </p>
                       </div>
                     ))}
@@ -339,29 +329,17 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     <div className="space-y-2 text-sm text-stone-400">
                       <p>
                         Payment:{' '}
-                        {order.paymentMethod
-                          ? order.paymentMethod.toUpperCase()
-                          : 'N/A'}
+                        {order.paymentMethod?.toUpperCase() || 'N/A'}
                       </p>
-
                       <p>
                         Delivery:{' '}
-                        {order.deliveryType
-                          ? order.deliveryType.toUpperCase()
-                          : 'N/A'}
+                        {order.deliveryType?.toUpperCase() || 'N/A'}
                       </p>
-
-                      <p>
-                        Address:{' '}
-                        {order.address || 'No Address'}
-                      </p>
+                      <p>Address: {order.address || 'No Address'}</p>
                     </div>
 
                     <div className="text-right">
-                      <p className="text-stone-500 text-xs">
-                        TOTAL
-                      </p>
-
+                      <p className="text-stone-500 text-xs">TOTAL</p>
                       <h2 className="text-3xl font-black text-red-600">
                         ₱{order.total?.toLocaleString() || 0}
                       </h2>
