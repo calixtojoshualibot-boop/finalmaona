@@ -18,9 +18,16 @@ export default function Showcase({ onAdmin }: Props) {
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<Cap | null>(null);
 
-  useEffect(() => {
+  const loadAll = () => {
     api.getAll().then(setCaps);
     api.getContact().then(setContact);
+  };
+
+  useEffect(() => {
+    loadAll();
+    // Listen for storage changes to update contact info immediately if admin changes it
+    window.addEventListener('focus', loadAll);
+    return () => window.removeEventListener('focus', loadAll);
   }, []);
 
   const teams = [...new Set(caps.map(c => c.team))].sort();
