@@ -1,5 +1,3 @@
-// Path: src/components/Admin.tsx
-
 import { useState, useEffect, useRef } from 'react';
 import { Cap, SellerContact, UserAccount, Order } from '../types/Cap';
 import { api } from '../services/api';
@@ -22,7 +20,6 @@ export default function Admin({ onBack, onLogout }: Props) {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'list'|'form'|'view'|'settings'|'orders'|'users'>(() => (localStorage.getItem('admin_active_tab') as any) || 'list');
 
-  useEffect(() => { localStorage.setItem('admin_active_tab', tab); }, [tab]);
   const [editing, setEditing] = useState<Cap|null>(null);
   const [viewing, setViewing] = useState<Cap|null>(null);
   const [del, setDel] = useState<Cap|null>(null);
@@ -163,6 +160,7 @@ export default function Admin({ onBack, onLogout }: Props) {
                      <div className="space-y-2">
                         {Array.isArray(order?.items) ? order.items.map((item: any, i: number) => (
                           <div key={i} className="flex items-center gap-4 mb-4">
+                            {/* Added product image */}
                             <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-200">
                               {item.image ? <TeamLogo image={item.image} size={80}/> : <div className="text-xs text-slate-400 flex items-center justify-center h-full">No Image</div>}
                             </div>
