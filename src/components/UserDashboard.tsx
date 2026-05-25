@@ -76,10 +76,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
     const orderData: Omit<Order, 'id'> = {
       userId: user.id,
       userName: user.name,
-      items: cart.map(i => ({
-        ...i.cap,
-        quantity: i.qty,
-      })),
+      items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
       total: cartTotal,
       status: 'pending',
       paymentMethod,
@@ -91,6 +88,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
     };
 
     await api.createOrder(orderData);
+
     setCart([]);
     setTab('orders');
     setIsOrdering(false);
@@ -111,7 +109,6 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
             >
               NBA Vault
             </button>
-
             <div className="hidden sm:flex gap-6">
               {['browse', 'orders'].map(t => (
                 <button
