@@ -49,7 +49,7 @@ export default function AdminLogin({ onSuccess, onBack }: Props) {
           </button>
         </div>
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-black text-white uppercase">{isRegister ? 'Create Account' : 'Login'}</h1>
+          <h1 className="text-2xl font-black text-white uppercase">{isRegister ? 'Create Account' : 'Admin Login'}</h1>
           <p className="text-slate-500 text-sm mt-1">{isRegister ? 'Join the NBA Caps Vault' : 'Access the management panel'}</p>
         </div>
         <form onSubmit={submit} className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 space-y-5">
