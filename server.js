@@ -55,7 +55,6 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// GET all users (Populates your web user list)
 app.get("/api/users", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT id, name, email, role FROM users");
@@ -65,7 +64,6 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// UPDATE user role action
 app.put("/api/users/:id", async (req, res) => {
   const { role } = req.body;
   try {
@@ -76,15 +74,12 @@ app.put("/api/users/:id", async (req, res) => {
   }
 });
 
-// DELETE user account action
 app.delete("/api/users/:id", async (req, res) => {
   try {
-    // Protect accidental lockout of primary admin
     const [user] = await pool.query("SELECT email FROM users WHERE id = ?", [req.params.id]);
     if (user.length > 0 && user[0].email === "admin@caps.ph") {
       return res.status(403).json({ error: "The primary admin account cannot be deleted." });
     }
-
     await pool.query("DELETE FROM users WHERE id = ?", [req.params.id]);
     res.status(204).send();
   } catch (err) {
@@ -139,10 +134,46 @@ app.delete("/api/caps/:id", async (req, res) => {
 });
 
 // --- ORDERS API ---
+
+// 1. FIXED: GET all master orders (For Admin Dashboard Overview)
 app.get("/api/orders", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM orders ORDER BY date DESC");
-    const parsedOrders = rows.map(o => ({ ...o, items: JSON.parse(o.items) }));
+    // Modified to use a safer column verification fallback fallback ordering fallback
+    const [rows] = await pool.query("SELECT * FROM orders");
+    
+    const parsedOrders = rows.map(o => {
+      let parsedItems = [];
+      try {
+        parsedItems = typeof o.items === "string" ? JSON.parse(o.items) : o.items;
+      } catch (e) {
+        console.error(`Failed parsing item payload string for order ID: ${o.id}`, e);
+        parsedItems = []; // fallback clean array so the UI never hits an uncaught white crash
+      }
+      return { ...o, items: parsedItems };
+    });
+
+    res.json(parsedOrders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. NEW: GET specific user's orders (For Vault History Dashboard View)
+app.get("/api/orders/user/:userId", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM orders WHERE userId = ?", [req.params.userId]);
+    
+    const parsedOrders = rows.map(o => {
+      let parsedItems = [];
+      try {
+        parsedItems = typeof o.items === "string" ? JSON.parse(o.items) : o.items;
+      } catch (e) {
+        console.error(`Failed parsing user history profile list item logic for order ID: ${o.id}`, e);
+        parsedItems = [];
+      }
+      return { ...o, items: parsedItems };
+    });
+
     res.json(parsedOrders);
   } catch (err) {
     res.status(500).json({ error: err.message });
