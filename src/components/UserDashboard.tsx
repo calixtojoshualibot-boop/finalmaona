@@ -1,3 +1,5 @@
+// Path: src/components/UserDashboard.tsx
+
 import { useState, useEffect } from 'react';
 import { Cap, Order } from '../types/Cap';
 import { api } from '../services/api';
@@ -196,6 +198,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     </button>
                   </div>
                 ))}
+
                 <form onSubmit={placeOrder} className="bg-stone-900 p-6 rounded-3xl space-y-4">
                   <input
                     type="text"
@@ -212,6 +215,66 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     className="w-full p-3 rounded-xl bg-black"
                     required
                   />
+
+                  {/* Payment Method */}
+                  <div className="space-y-2">
+                    <p className="font-bold text-sm">Payment Method</p>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="cash"
+                          checked={paymentMethod === 'cash'}
+                          onChange={() => setPaymentMethod('cash')}
+                        />
+                        Cash
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="gcash"
+                          checked={paymentMethod === 'gcash'}
+                          onChange={() => setPaymentMethod('gcash')}
+                        />
+                        GCash
+                      </label>
+                    </div>
+                    {paymentMethod === 'gcash' && (
+                      <p className="text-xs text-stone-400">
+                        Please send payment to <span className="font-bold">GCash #: 09123456789</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Delivery Type */}
+                  <div className="space-y-2">
+                    <p className="font-bold text-sm">Delivery Type</p>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="deliveryType"
+                          value="pickup"
+                          checked={deliveryType === 'pickup'}
+                          onChange={() => setDeliveryType('pickup')}
+                        />
+                        Pickup
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="deliveryType"
+                          value="cod"
+                          checked={deliveryType === 'cod'}
+                          onChange={() => setDeliveryType('cod')}
+                        />
+                        Cash on Delivery
+                      </label>
+                    </div>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={isOrdering}
