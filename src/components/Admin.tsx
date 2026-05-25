@@ -8,12 +8,12 @@ import {
 
 interface Props { onBack: () => void; onLogout: () => void; }
 
-const CONDITIONS = ['deadstock','near-mint','excellent','good','fair','beater'] as const;
-const COND_STYLES: Record<string,string> = {
-  deadstock:'bg-emerald-500', 'near-mint':'bg-green-500', excellent:'bg-blue-500',
-  good:'bg-yellow-500', fair:'bg-orange-500', beater:'bg-red-500',
-};
+const CONDITIONS = ['good', 'renovated'] as const;
 
+const COND_STYLES: Record<string, string> = {
+  good: 'bg-yellow-500',
+  renovated: 'bg-green-500',
+};
 export default function Admin({ onBack, onLogout }: Props) {
   const user = api.getUser();
   const isAdmin = user?.role === 'admin';
