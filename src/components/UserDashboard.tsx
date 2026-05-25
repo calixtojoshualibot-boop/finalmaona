@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Cap, Order, SellerContact } from '../types/Cap';
 import { api } from '../services/api';
-import TeamLogo from './TeamLogos';
-import { ShoppingCart, Trash2, Upload, Camera } from 'lucide-react';
+import { ShoppingCart, Trash2 } from 'lucide-react';
 
 interface Props {
   onLogout: () => void;
@@ -69,7 +68,6 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
 
   const gcashNumber = sellerContact?.phone || '09123456789';
   const sellerName = sellerContact?.shopName || 'NBA Vault';
-  const sellerAddress = sellerContact?.address || 'No seller address set';
 
   const placeOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +117,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Navigation */}
       <nav className="bg-stone-900 border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
@@ -147,6 +146,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Cart */}
         {tab==='cart' && (
           <div className="space-y-6">
             <h1 className="text-4xl font-black uppercase">Shopping Cart</h1>
@@ -157,7 +157,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     <div key={item.cap.id} className="bg-stone-900 p-4 rounded-2xl flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <div className="w-20 h-20 rounded-xl overflow-hidden bg-black flex items-center justify-center">
-                          <TeamLogo image={item.cap.image} size={80}/>
+                          <img src={item.cap.image || '/placeholder.png'} alt={item.cap.name} className="w-full h-full object-contain" />
                         </div>
                         <div>
                           <h3 className="font-bold">{item.cap.name}</h3>
@@ -170,25 +170,30 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                   ))}
                 </div>
 
+                {/* Checkout Form */}
                 <form onSubmit={placeOrder} className="bg-stone-900 p-6 rounded-3xl space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-4">
-                      <input type="text" placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full p-4 rounded-xl bg-black border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500"/>
-                      <textarea placeholder="Address" value={address} onChange={e=>setAddress(e.target.value)} rows={3} className="w-full p-4 rounded-xl bg-black border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500"/>
-                      <textarea placeholder="Order notes optional" value={notes} onChange={e=>setNotes(e.target.value)} rows={2} className="w-full p-4 rounded-xl bg-black border border-white/10 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+                      <input type="text" placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full p-4 rounded-xl bg-black border border-white/10"/>
+                      <textarea placeholder="Address" value={address} onChange={e=>setAddress(e.target.value)} rows={3} className="w-full p-4 rounded-xl bg-black border border-white/10"/>
+                      <textarea placeholder="Order notes optional" value={notes} onChange={e=>setNotes(e.target.value)} rows={2} className="w-full p-4 rounded-xl bg-black border border-white/10"/>
                       
-                      {/* Payment Method & GCash Receipt */}
+                      {/* Payment Method & Receipt */}
                       <div className="space-y-3">
-                        <p className="text-white font-bold">Payment Method</p>
+                        <p className="font-bold">Payment Method</p>
                         <div className="flex gap-4">
-                          <label className="flex items-center gap-2"><input type="radio" name="payment" value="cash" checked={paymentMethod==='cash'} onChange={()=>setPaymentMethod('cash')}/>Cash</label>
-                          <label className="flex items-center gap-2"><input type="radio" name="payment" value="gcash" checked={paymentMethod==='gcash'} onChange={()=>setPaymentMethod('gcash')}/>GCash</label>
+                          <label className="flex items-center gap-2">
+                            <input type="radio" value="cash" checked={paymentMethod==='cash'} onChange={()=>setPaymentMethod('cash')}/>Cash
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input type="radio" value="gcash" checked={paymentMethod==='gcash'} onChange={()=>setPaymentMethod('gcash')}/>GCash
+                          </label>
                         </div>
 
                         {paymentMethod==='gcash' && (
                           <div className="mt-2 p-4 bg-gray-800 rounded-xl border border-red-500 space-y-2">
                             <p className="text-gray-300">Send payment to <span className="text-red-500 font-bold">{gcashNumber}</span></p>
-                            <input type="text" placeholder="GCash Reference #" value={gcashReference} onChange={e=>setGcashReference(e.target.value)} className="w-full p-3 rounded-xl bg-gray-900 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+                            <input type="text" placeholder="GCash Reference #" value={gcashReference} onChange={e=>setGcashReference(e.target.value)} className="w-full p-3 rounded-xl bg-gray-900 text-white border border-gray-700"/>
                             <label className="block cursor-pointer text-white">Upload Receipt
                               <input type="file" accept="image/*" className="hidden" onChange={handleReceiptUpload}/>
                             </label>
@@ -199,10 +204,14 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
 
                       {/* Delivery Type */}
                       <div className="space-y-3">
-                        <p className="text-white font-bold">Delivery Type</p>
+                        <p className="font-bold">Delivery Type</p>
                         <div className="flex gap-4">
-                          <label className="flex items-center gap-2"><input type="radio" name="delivery" value="pickup" checked={deliveryType==='pickup'} onChange={()=>setDeliveryType('pickup')}/>Pickup</label>
-                          <label className="flex items-center gap-2"><input type="radio" name="delivery" value="cod" checked={deliveryType==='cod'} onChange={()=>setDeliveryType('cod')}/>Cash on Delivery</label>
+                          <label className="flex items-center gap-2">
+                            <input type="radio" value="pickup" checked={deliveryType==='pickup'} onChange={()=>setDeliveryType('pickup')}/>Pickup
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input type="radio" value="cod" checked={deliveryType==='cod'} onChange={()=>setDeliveryType('cod')}/>Cash on Delivery
+                          </label>
                         </div>
                       </div>
                     </div>
@@ -214,8 +223,9 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                         <h2 className="text-3xl font-black text-red-600">₱{cartTotal.toLocaleString()}</h2>
                         <p className="text-sm text-stone-400">{totalQty} item(s)</p>
                       </div>
-
-                      <button type="submit" disabled={isOrdering} className="w-full bg-red-600 py-4 rounded-2xl font-black uppercase hover:bg-red-500 transition-colors disabled:opacity-60">{isOrdering?'Processing...':'Place Order'}</button>
+                      <button type="submit" disabled={isOrdering} className="w-full bg-red-600 py-4 rounded-2xl font-black uppercase hover:bg-red-500 disabled:opacity-60">
+                        {isOrdering ? 'Processing...' : 'Place Order'}
+                      </button>
                     </div>
                   </div>
                 </form>
