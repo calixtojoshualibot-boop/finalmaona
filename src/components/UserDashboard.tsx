@@ -134,9 +134,36 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                       <h3 className="font-bold text-white group-hover:text-red-400 transition-colors">{cap.name}</h3>
                       <p className="text-[10px] text-stone-500 uppercase font-black tracking-widest mt-1">{cap.team} • {cap.year}</p>
                     </div>
-                    <div className="flex items-center justify-between mt-6">
-                      <span className="font-black text-lg text-white">₱{cap.price.toLocaleString()}</span>
-                      <button onClick={() => addToCart(cap)} className="bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-95">Add to Cart</button>
+                    <div className="flex flex-col gap-3 mt-6">
+                      <div className="flex items-center justify-between">
+                         <span className="font-black text-lg text-white">₱{cap.price.toLocaleString()}</span>
+                         <div className="flex items-center bg-black border border-white/10 rounded-lg overflow-hidden">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.nextElementSibling as HTMLInputElement; el.value = Math.max(1, parseInt(el.value) - 1).toString(); }}
+                              className="px-2 py-1 hover:bg-white/5 text-stone-500"
+                            >-</button>
+                            <input 
+                              type="number" 
+                              defaultValue="1" 
+                              min="1" 
+                              id={`qty-${cap.id}`}
+                              className="w-8 bg-transparent text-center text-[10px] font-bold border-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                            />
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.previousElementSibling as HTMLInputElement; el.value = (parseInt(el.value) + 1).toString(); }}
+                              className="px-2 py-1 hover:bg-white/5 text-stone-500"
+                            >+</button>
+                         </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const qty = parseInt((document.getElementById(`qty-${cap.id}`) as HTMLInputElement).value) || 1;
+                          for(let i=0; i<qty; i++) addToCart(cap);
+                        }} 
+                        className="w-full bg-red-600 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-95"
+                      >
+                        Add to Cart
+                      </button>
                     </div>
                   </div>
                 </div>
