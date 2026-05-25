@@ -20,7 +20,7 @@ const pool = mysql.createPool({
   user: process.env.MYSQL_USER,
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
-  port: Number(process.env.MYSQL_PORT) || 17652, // Updated default fallback to your Aiven port
+  port: Number(process.env.MYSQL_PORT) || 17652, 
   ssl: {
     rejectUnauthorized: false 
   },
@@ -29,7 +29,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// --- AUTH API ---
+// --- AUTH & USERS API ---
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -55,11 +55,38 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// --- USERS API (ADDED TO FIX YOUR EMPTY WEB TABLE) ---
+// GET all users (Populates your web user list)
 app.get("/api/users", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT id, name, email, role FROM users");
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE user role action
+app.put("/api/users/:id", async (req, res) => {
+  const { role } = req.body;
+  try {
+    await pool.query("UPDATE users SET role = ? WHERE id = ?", [role, req.params.id]);
+    res.json({ success: true, message: "User role updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE user account action
+app.delete("/api/users/:id", async (req, res) => {
+  try {
+    // Protect accidental lockout of primary admin
+    const [user] = await pool.query("SELECT email FROM users WHERE id = ?", [req.params.id]);
+    if (user.length > 0 && user[0].email === "admin@caps.ph") {
+      return res.status(403).json({ error: "The primary admin account cannot be deleted." });
+    }
+
+    await pool.query("DELETE FROM users WHERE id = ?", [req.params.id]);
+    res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -171,7 +198,7 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
-// Static files
+// Static frontend file routing
 app.use(express.static(path.join(__dirname, "dist")));
 
 app.get("/:any*", (req, res) => {
