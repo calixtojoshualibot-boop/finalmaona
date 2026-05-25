@@ -12,7 +12,7 @@ interface Props {
 export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
   const user = api.getUser();
   const [caps, setCaps] = useState<Cap[]>([]);
-  const [cart, setCart] = useState<{ cap: Cap; qty: number }[]>(() => {
+  const [cart, setCart] = useState<{cap: Cap, qty: number}[]>(() => {
     const saved = localStorage.getItem('user_cart');
     return saved ? JSON.parse(saved) : [];
   });
@@ -29,7 +29,6 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
   const [deliveryType, setDeliveryType] = useState<'cod' | 'pickup'>('pickup');
   const [isOrdering, setIsOrdering] = useState(false);
 
-  // Persist cart and tab
   useEffect(() => {
     localStorage.setItem('user_cart', JSON.stringify(cart));
   }, [cart]);
@@ -59,39 +58,29 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
     setCart(prev => prev.filter(item => item.cap.id !== id));
   };
 
-  const cartTotal = cart.reduce((acc, item) => acc + item.cap.price * item.qty, 0);
+  const cartTotal = cart.reduce((acc, item) => acc + (item.cap.price * item.qty), 0);
 
   const placeOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || cart.length === 0) return;
-
     setIsOrdering(true);
-    try {
-      const orderData: Omit<Order, 'id' | 'date'> = {
-        userId: user.id,
-        userName: user.name,
-        items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
-        total: cartTotal,
-        status: 'pending',
-        paymentMethod,
-        deliveryType,
-        address,
-        phone,
-        notes,
-      };
-
-      await api.createOrder(orderData);
-      setCart([]);
-      setTab('orders');
-
-      const list = await api.getOrders();
-      setOrders(list.filter(o => o.userId === user.id));
-    } catch (err) {
-      console.error(err);
-      alert('Error placing order');
-    } finally {
-      setIsOrdering(false);
-    }
+    const orderData: Omit<Order, 'id' | 'date'> = {
+      userId: user.id,
+      userName: user.name,
+      items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
+      total: cartTotal,
+      status: 'pending',
+      paymentMethod,
+      deliveryType,
+      address,
+      phone,
+      notes,
+    };
+    await api.createOrder(orderData);
+    setCart([]);
+    setTab('orders');
+    setIsOrdering(false);
+    api.getOrders().then(list => setOrders(list.filter(o => o.userId === user.id)));
   };
 
   return (
@@ -101,10 +90,10 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
           <div className="flex items-center gap-8">
             <button onClick={onBackToShowcase} className="font-black text-red-600 uppercase tracking-tighter italic text-xl">NBA Vault</button>
             <div className="hidden sm:flex gap-6">
-              {['browse', 'orders'].map(t => (
-                <button
+              {['browse', 'orders'].map((t) => (
+                <button 
                   key={t}
-                  onClick={() => setTab(t as any)}
+                  onClick={() => setTab(t as any)} 
                   className={`text-xs font-black uppercase tracking-widest transition-colors ${tab === t ? 'text-red-500' : 'text-stone-500 hover:text-white'}`}
                 >
                   {t}
@@ -131,8 +120,8 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
         {tab === 'browse' && (
           <div className="space-y-8 animate-fade-in">
             <div className="flex justify-between items-end">
-              <h1 className="text-4xl font-black uppercase tracking-tighter">Vault <span className="text-red-600">Collection</span></h1>
-              <p className="text-stone-500 text-sm font-bold uppercase">{caps.length} items available</p>
+               <h1 className="text-4xl font-black uppercase tracking-tighter">Vault <span className="text-red-600">Collection</span></h1>
+               <p className="text-stone-500 text-sm font-bold uppercase">{caps.length} items available</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {caps.map(cap => (
@@ -147,14 +136,34 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     </div>
                     <div className="flex flex-col gap-3 mt-6">
                       <div className="flex items-center justify-between">
-                        <span className="font-black text-lg text-white">₱{cap.price.toLocaleString()}</span>
-                        <div className="flex items-center bg-black border border-white/10 rounded-lg overflow-hidden">
-                          <button onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.nextElementSibling as HTMLInputElement; el.value = Math.max(1, parseInt(el.value) - 1).toString(); }} className="px-2 py-1 hover:bg-white/5 text-stone-500">-</button>
-                          <input type="number" defaultValue="1" min="1" id={`qty-${cap.id}`} className="w-8 bg-transparent text-center text-[10px] font-bold border-none focus:ring-0" />
-                          <button onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.previousElementSibling as HTMLInputElement; el.value = (parseInt(el.value) + 1).toString(); }} className="px-2 py-1 hover:bg-white/5 text-stone-500">+</button>
-                        </div>
+                         <span className="font-black text-lg text-white">₱{cap.price.toLocaleString()}</span>
+                         <div className="flex items-center bg-black border border-white/10 rounded-lg overflow-hidden">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.nextElementSibling as HTMLInputElement; el.value = Math.max(1, parseInt(el.value) - 1).toString(); }}
+                              className="px-2 py-1 hover:bg-white/5 text-stone-500"
+                            >-</button>
+                            <input 
+                              type="number" 
+                              defaultValue="1" 
+                              min="1" 
+                              id={`qty-${cap.id}`}
+                              className="w-8 bg-transparent text-center text-[10px] font-bold border-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                            />
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.previousElementSibling as HTMLInputElement; el.value = (parseInt(el.value) + 1).toString(); }}
+                              className="px-2 py-1 hover:bg-white/5 text-stone-500"
+                            >+</button>
+                         </div>
                       </div>
-                      <button onClick={() => { const qty = parseInt((document.getElementById(`qty-${cap.id}`) as HTMLInputElement).value) || 1; for(let i=0;i<qty;i++) addToCart(cap); }} className="w-full bg-red-600 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-95">Add to Cart</button>
+                      <button 
+                        onClick={() => {
+                          const qty = parseInt((document.getElementById(`qty-${cap.id}`) as HTMLInputElement).value) || 1;
+                          for(let i=0; i<qty; i++) addToCart(cap);
+                        }} 
+                        className="w-full bg-red-600 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-95"
+                      >
+                        Add to Cart
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -174,12 +183,11 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                {/* List */}
                 <div className="lg:col-span-3 space-y-4">
                   {cart.map(item => (
                     <div key={item.cap.id} className="bg-stone-900/50 rounded-2xl border border-white/5 p-4 flex items-center gap-6">
-                      <div className="w-20 h-20 rounded-xl bg-stone-900 flex items-center justify-center p-2">
-                        <TeamLogo image={item.cap.image} size={64} />
-                      </div>
+                      <div className="w-20 h-20 rounded-xl bg-stone-900 flex items-center justify-center p-2"><TeamLogo image={item.cap.image} size={64} /></div>
                       <div className="flex-1">
                         <h4 className="font-bold text-white">{item.cap.name}</h4>
                         <p className="text-sm text-red-500 font-black mt-1">₱{item.cap.price.toLocaleString()}</p>
@@ -191,7 +199,8 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     </div>
                   ))}
                 </div>
-
+                
+                {/* Checkout Form */}
                 <div className="lg:col-span-2">
                   <form onSubmit={placeOrder} className="bg-stone-900 rounded-3xl border border-white/10 p-6 space-y-6 sticky top-24">
                     <h3 className="text-xl font-black uppercase tracking-tight text-white border-b border-white/5 pb-4">Checkout</h3>
@@ -199,7 +208,9 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-[10px] font-black uppercase text-stone-500 mb-2 tracking-widest">Contact Phone</label>
-                        <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all" placeholder="0917XXXXXXX" />
+                        <div className="relative">
+                          <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all" placeholder="0917XXXXXXX" />
+                        </div>
                       </div>
                       
                       <div>
@@ -225,6 +236,14 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                         </div>
                       </div>
 
+                      {paymentMethod === 'gcash' && (
+                        <div className="p-4 bg-blue-600/10 border border-blue-600/20 rounded-2xl space-y-2 animate-fade-in">
+                           <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase"><CreditCard size={14}/> GCash Details</div>
+                           <p className="text-xs text-stone-300">Send to: <strong>0917 123 4567</strong> (Juan D.)</p>
+                           <p className="text-[10px] text-stone-500 leading-tight">Please send payment before placing order. Screenshot may be required for validation.</p>
+                        </div>
+                      )}
+
                       <div>
                         <label className="block text-[10px] font-black uppercase text-stone-500 mb-2 tracking-widest">Notes (Optional)</label>
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all resize-none" placeholder="Color preference, best time to call..." />
@@ -237,7 +256,7 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                         <span className="text-2xl font-black text-red-600 tracking-tighter">₱{cartTotal.toLocaleString()}</span>
                       </div>
                       <button type="submit" disabled={isOrdering} className="w-full py-4 bg-red-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-900/40 disabled:opacity-50 active:scale-95">
-                        {isOrdering ? 'Processing...' : 'Place Vault Order'}
+                        {isOrdering ? 'Securing Order...' : 'Place Vault Order'}
                       </button>
                     </div>
                   </form>
@@ -278,49 +297,58 @@ export default function UserDashboard({ onLogout, onBackToShowcase }: Props) {
                         <div className="text-right">
                            <p className="text-[10px] font-black text-stone-500 uppercase leading-none">DATE</p>
                            <p className="text-xs font-bold text-white mt-1">{order.date.split(' ')[0]}</p>
-                        </divI see the issue: your order history isn’t showing after placing an order because the `cart.map` items are being added correctly, but the `orders` state isn’t being refreshed properly after `api.createOrder`. We can fix it by **forcing a reload of orders immediately after the order is created** and ensuring that the response from `api.createOrder` returns the new order.
-
-Here’s a **full fixed `UserDashboard.tsx` snippet** with only the order/cart behavior corrected. Everything else remains unchanged:
-
-```tsx
-// in UserDashboard.tsx
-
-const placeOrder = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!user || cart.length === 0) return;
-
-  setIsOrdering(true);
-  try {
-    const orderData: Omit<Order, 'id' | 'date'> = {
-      userId: user.id,
-      userName: user.name,
-      items: cart.map(i => ({ ...i.cap, quantity: i.qty })),
-      total: cartTotal,
-      status: 'pending',
-      paymentMethod,
-      deliveryType,
-      address,
-      phone,
-      notes,
-    };
-
-    // send order to API
-    const newOrder = await api.createOrder(orderData);
-
-    // clear cart
-    setCart([]);
-
-    // refresh orders from API
-    const list = await api.getOrders();
-    setOrders(list.filter(o => o.userId === user.id));
-
-    // switch to orders tab
-    setTab('orders');
-
-  } catch (err) {
-    console.error(err);
-    alert('Error placing order');
-  } finally {
-    setIsOrdering(false);
-  }
-};
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between group/item">
+                            <div className="flex items-center gap-4">
+                               <TeamLogo image={item.image} size={40} />
+                               <div>
+                                  <p className="text-sm font-bold text-white group-hover/item:text-red-400 transition-colors">{item.name}</p>
+                                  <p className="text-[10px] text-stone-500 font-black uppercase">Qty: {item.quantity} • ₱{item.price.toLocaleString()}</p>
+                               </div>
+                            </div>
+                            <span className="text-sm font-black text-white">₱{(item.price * item.quantity).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap justify-between items-end gap-6">
+                        <div className="flex gap-8">
+                           <div>
+                              <p className="text-[10px] font-black text-stone-500 uppercase mb-1">Details</p>
+                              <div className="flex items-center gap-2 text-xs font-bold text-stone-300">
+                                 <CreditCard size={14} className="text-red-500"/> {order.paymentMethod.toUpperCase()}
+                                 <span className="w-1 h-1 rounded-full bg-stone-700"/>
+                                 <Package size={14} className="text-red-500"/> {order.deliveryType.toUpperCase()}
+                              </div>
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-black text-stone-500 uppercase mb-1">Location</p>
+                              <div className="flex items-center gap-2 text-xs font-bold text-stone-300">
+                                 <MapPin size={14} className="text-red-500"/> {order.address.slice(0, 30)}...
+                              </div>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[10px] font-black text-stone-500 uppercase mb-1">Final Amount</p>
+                           <span className="text-3xl font-black text-red-600 tracking-tighter">₱{order.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+      
+      <footer className="py-20 border-t border-white/5 text-center">
+         <p className="text-[10px] font-black text-stone-800 uppercase tracking-[0.3em]">NBA CAPS VAULT • ELITE QUALITY GUARANTEED</p>
+      </footer>
+    </div>
+  );
+}
